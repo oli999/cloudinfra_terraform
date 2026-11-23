@@ -1,0 +1,31 @@
+# Local .terraform directories (프로바이더 바이너리 등 대용량 파일)
+**/.terraform/*
+
+# .tfstate files (인프라 상태 및 민감 정보 포함 가능)
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# 민감한 변수(Access Key, DB 비밀번호 등)가 포함되는 파일
+*.tfvars
+*.tfvars.json
+
+# Override files (로컬 테스트용 덮어쓰기 설정)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Plan 결과 파일 (민감 정보 포함 가능)
+*.tfplan
+
+# AWS/SSH 키 파일 실수 커밋 방지
+*.pem
+*.key
