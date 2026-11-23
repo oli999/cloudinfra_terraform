@@ -55,7 +55,15 @@ resource "aws_subnet" "public_subnet" {
   }
 }
 
-
+# 라우팅 테이블 : 네트워크 트레픽의 경로를 결정하는 이정표
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.main.id # 이 라우팅 테이블이 속할 vpc 지정
+  # 라우팅 규칙: 내부 대역 외 모든 외부 목적지(0.0.0.0/0) 으로 가는 트래픽은 인터냇 게이트 웨이로 가도록 한다
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+}
 
 
 
