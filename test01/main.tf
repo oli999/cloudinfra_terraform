@@ -37,7 +37,7 @@ resource "aws_internet_gateway" "igw" {
 }
 
 # 가용영역(AZ) 조회 
-data "aws_availablity_zones" "avilable"{
+data "aws_availability_zones" "available"{
   state = "available" # 현재 리전에서 사용가능한 AZ 목록만 필터링
 }
 
@@ -47,7 +47,7 @@ resource "aws_subnet" "public_subnet" {
   # subnet 의 ip 대역 지정 
   cidr_block = "10.0.1.0/24"
   # 조회된 AZ 목록 배열(예: ["ap-northeast-2a", "ap-northeast-2b", ...]) 중 첫 번째(0번) 선택
-  availability_zone = data.aws_availablity_zones.available.names[0]
+  availability_zone = data.aws_availability_zones.available.names[0]
   # 이 서브넷에 생성되는 EC2 인스턴스에 공인(Public) IP를 자동으로 할당
   map_public_ip_on_launch = true
   tags = {
