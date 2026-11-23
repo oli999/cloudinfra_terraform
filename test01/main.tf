@@ -65,6 +65,31 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
+# 라우팅 테이블 연결 (public subnet 을 위에서 만든 라우팅 테이블로 연결해서 인터넷이 되도록 한다 )
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.public_subnet.id # 연결할 서브넷 ID
+  route_table_id = aws_route_table.public_rt.id # 적용할 라우팅 테이블 ID
+}
 
+# pem 파일 관련 작업
+# 알고리즘 결정
+resource "tls_private_key" "pk" {
+    algorithm = "RSA"
+    rsa_bits  = 4096
+}
+# aws 에 공개키 등록
+resource "aws_key_pair" "kp" {
+    key_name   = "lecture-key" # AWS 콘솔에 표시될 키 페어 이름
+    public_key = tls_private_key.pk.public_key_openssh # OpenSSH 형식의 공개키를 AWS에 업로드
+}
+
+# 개인키를 가져오기
+# "local_file" resource 를 이용하면 파일을 생성할수 있다.
+resource "local_file" "ssh_key" {
+    # ${path.module} 은 현재 실행경로를 의미한다. 
+    filename        = "${path.module}/lecture-key.pem" # 현재 main.tf가 있는 폴더에 저장
+    content         = tls_private_key.pk.private_key_pem
+    file_permission = "0600" # 파일의 권한 설정 
+}
 
 
