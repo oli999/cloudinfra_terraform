@@ -92,4 +92,50 @@ resource "local_file" "ssh_key" {
     file_permission = "0600" # 파일의 권한 설정 
 }
 
+# 보안그룹 만들기
+resource "aws_security_group" "ssh_sg" {
+    # 보안 그룹의 이름은 이름이 겹치지 않게 유일하게 식별되는 이름은 짓는다
+    name = "allow-ssh"
+    # 어떤 vpc 소속인지 (보안그룹은 vpc 에 종속된다)
+    vpc_id = aws_vpc.main.id # 위에서 미리 정의한 vpc
+
+    # 밖에서 안으로 들어오는 규칙 (ingress rule)
+    ingress {
+      from_port = 22
+      to_port = 22
+      protocol = "tcp"
+      cidr_blocks = ["0.0.0.0/0"] # 외부에서 들어오는 모든 traffic (실무에서는 나의 ip 만)
+    }
+    # 안에서 밖으로 나가는 규칙 (egress rule)
+    egress {
+      # 0번~0번 까지 열어두면 모든 port 를 의미한다 
+      from_port = 0
+      to_port = 0
+      protocol = "-1"  # 모든 프로토콜 
+      cidr_blocks = ["0.0.0.0/0"] # 출발지에 상관없이 
+    }
+}
+
+# ec2 에 설치할 amazon linux 최신 이미지 검색
+data "aws_ami" "latest_al2023" {
+    most_recent   = true
+    owners        = ["amazon"]
+    filter {
+        name    = "name"
+        values  = ["al2023-ami-*-x86_64"]  # 이름이 이렇게 시작하는 것들 중에서 최신 이미지 검색 
+    }
+}
+
+# ec2 만들기
+resource "aws_instance" "my_ec2" {
+    ami = data.aws_ami.latest_al2023.id # 검색된 최신 이미지의 id
+    instance_type = "t3.micro" # 서버 사양
+    subnet_id = aws_subnet.public_subnet.id # 어떤 subnet 에 위치 시킬 것인지
+    vpc_security_group_ids = [aws_security_group.ssh_sg.id] # 적용시킬 보안그룹의 아이디를 배열에 넣어준다.
+    key_name = aws_key_pair.kp.key_name # 위에서 미리 분비한 key 를 참조해서 이름을 넣어준다.
+    # 테그 부여 (웹브라우저로 접속했을때 실제 만들어진 ec2 의 이름이 된다)
+    tags = {
+      Name = "my-ec2"
+    }
+}
 
