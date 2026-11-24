@@ -26,3 +26,7 @@ ls -al
 exit 
 
 ```
+
+## terraform 파일에서 문자열 이어 붙이기
+
+<img src="./images/image09.png">

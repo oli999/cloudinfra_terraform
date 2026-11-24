@@ -139,3 +139,13 @@ resource "aws_instance" "my_ec2" {
     }
 }
 
+# 만들어진 ec2 의 public ipv4 주소 출력하기
+output "ec2_public_ip" {
+  description = "생성된 EC2 인스턴스의 ip"
+  value = aws_instance.my_ec2.public_ip
+}
+
+output "ssh_command" {
+  description = "local 에 생성된 pem 파일을 이용해서 ssh 접속 명령어"
+  value = "ssh ec2-user@${aws_instance.my_ec2.public_ip}  -i ${local_file.ssh_key.filename}"
+}
