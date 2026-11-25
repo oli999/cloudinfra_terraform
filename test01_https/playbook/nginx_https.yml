@@ -1,0 +1,50 @@
+# test10_nginx_https/nginx_https.yml
+---
+- name: "Nginx 웹서버 설치 및 HTTPS 보안 설정"
+  hosts: aws_amazon
+  become: yes
+
+  vars:
+
+    # Nginx 설정 예시
+    nginx_upstreams:
+      - name: "fastapi_cluster"
+        servers:
+          - "127.0.0.1:8000"
+          - "127.0.0.1:8001"
+
+    # 1. Nginx 롤 구동을 위한 기본 설정 (덮어쓰기 방지)
+    nginx_vhosts:
+      
+      # [블록 1] 80포트(HTTP)로 들어오면 443포트(HTTPS)로 강제 리다이렉트
+      - listen: "80"
+        server_name: "cloud-hack.store www.cloud-hack.store"
+        filename: "cloud-hack-http.conf" # 덮어쓰기 방지용 파일명
+        return: "301 https://$host$request_uri"
+
+      # [블록 2] 443포트(HTTPS) 메인 서버 설정
+      - listen: "443 ssl http2"
+        server_name: "cloud-hack.store www.cloud-hack.store"
+        filename: "cloud-hack-https.conf" # 덮어쓰기 방지용 파일명
+        root: "/usr/share/nginx/html"
+        index: "index.html index.htm"
+        #  extra_parameters를 쓰면 Nginx 순정 문법을 그대로 사용할수 있다. 
+        extra_parameters: |
+
+          location / {
+            proxy_pass http://fastapi_cluster;
+            proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+          }
+
+          # Let's Encrypt가 발급해 준 실제 인증서 경로 (mywebsite.com 부분만 변경)
+          ssl_certificate     /etc/letsencrypt/live/cloud-hack.store/fullchain.pem;
+          ssl_certificate_key /etc/letsencrypt/live/cloud-hack.store/privkey.pem;
+
+          ssl_protocols       TLSv1.2 TLSv1.3;
+          ssl_ciphers         HIGH:!aNULL:!MD5;
+
+  roles:
+    - geerlingguy.nginx

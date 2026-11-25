@@ -1,0 +1,31 @@
+# ec2_bootstrap.yml
+---
+- name: "ec2 초기 셋팅: user1 생성 및 키등록"
+  hosts: aws_amazon
+  # ec2-user 로 접속해야한다
+  remote_user: ec2-user
+  become: yes
+
+  tasks:
+    - name: 1. user1 계정 생성 및 wheel 그룹 추가
+      user:
+        name: user1
+        shell: /bin/bash
+        state: present
+        # os 의 계열이 RedHat(amazon linux) 이면 'wheel' 그룹
+        # 그렇지 않으면(ubuntu 이면) 'sudo' 그룹으로 지정하겠다는 의미
+        groups: "{{ (ansible_os_family == 'RedHat') | ternary('wheel', 'sudo') }}"
+        append: yes
+
+    - name: 2. user1 에 패스워드 없는 sudo 권한 부여
+      copy:
+        dest: "/etc/sudoers.d/user1"
+        content: "user1 ALL=(ALL) NOPASSWD: ALL"
+        mode: '0440'
+    - name: 3. 로컬의 공개키를 ec2 의 user1 계정에 등록
+      authorized_key:
+        user: user1
+        state: present
+        # ansiblekey 의 공개키를 읽어서 EC2에 주입합니다.
+        key: "{{ lookup('file', '~/.ssh/ansiblekey.pem.pub') }}"
+

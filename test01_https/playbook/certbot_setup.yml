@@ -1,0 +1,66 @@
+# test10_nginx_https/certbot_setup.yml
+
+---
+- name: "2단계: AL2023 전용 Let's Encrypt 자동 발급 (Galaxy 롤 대체)"
+  hosts: aws_amazon #인벤토리 타겟 이름 확인
+  become: yes
+
+  tasks:
+    - name: "1. Certbot 설치에 필요한 시스템 패키지 준비"
+      dnf:
+        name:
+          - python3
+          - python3-pip
+          - augeas-libs
+        state: present
+
+    - name: "2. Python 가상환경(venv)에 Certbot 설치 (AL2023 공식 권장 방식)"
+      pip:
+        name: certbot
+        virtualenv: /opt/certbot
+        virtualenv_command: python3 -m venv
+
+    - name: "3. 시스템 전역에서 certbot 명령어 사용을 위한 심볼릭 링크 생성"
+      file:
+        src: /opt/certbot/bin/certbot
+        dest: /usr/bin/certbot
+        state: link
+
+    - name: "4. 인증서 발급을 위해 Nginx 임시 중지 (80포트 확보)"
+      systemd:
+        name: nginx
+        state: stopped
+      ignore_errors: yes 
+    # 여기에 본인의 이메일 주소와 도메인 네임을 적는다.
+    - name: "5. 도메인 인증서 신규 발급 (Standalone 모드)"
+      command: >
+        certbot certonly --standalone --non-interactive --agree-tos 
+        -m oli999@naver.com 
+        -d cloud-hack.store -d www.cloud-hack.store
+      args:
+        # 이 파일이 이미 서버에 존재하면 이 발급 명령어를 건너뜁니다! (멱등성)
+        creates: /etc/letsencrypt/live/cloud-hack.store/fullchain.pem
+
+    - name: "6. Nginx 다시 시작"
+      systemd:
+        name: nginx
+        state: started
+
+    - name: "7-1. 크론탭(cronie) 패키지 설치 (AL2023 필수)"
+      dnf:
+        name: cronie
+        state: present
+
+    - name: "7-2. 크론 데몬 시작 및 자동 실행 설정"
+      systemd:
+        name: crond
+        state: started
+        enabled: yes
+
+    - name: "7-3. 매일 새벽 3시 30분 자동 갱신 스케줄러 등록"
+      cron:
+        name: "Certbot Auto Renew"
+        minute: "30"
+        hour: "3"
+        user: root
+        job: "/usr/bin/certbot renew --quiet --pre-hook 'systemctl stop nginx' --post-hook 'systemctl start nginx'"

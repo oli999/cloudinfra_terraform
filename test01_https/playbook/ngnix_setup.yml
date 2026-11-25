@@ -1,0 +1,16 @@
+# nginx_setup.yml
+---
+- name: "1단계: Nginx 기본 웹서버 설치"
+  hosts: aws_amazon  # 타겟 일치
+  become: yes
+
+  vars:
+    nginx_vhosts:
+      # 아직 HTTPS가 없으므로 80포트로만 기본 세팅
+      - listen: "80"
+        server_name: "cloud-hack.store www.cloud-hack.store"
+        root: "/usr/share/nginx/html"
+        index: "index.html index.htm"
+  # 설치한 ansible galaxy role 을 이용해서 설치하도록 한다 
+  roles:
+    - geerlingguy.nginx

@@ -1,0 +1,67 @@
+# fastapi_setup.yml
+---
+- name: fastapi 듀얼 포트 배포 (8000, 8001)
+  hosts: aws_amazon
+  become: yes
+  # 필요한 변수를 미리 정의한다  
+  vars:
+    app_dir: "/opt/fastapi_app" # 사용자 app 은 보통 /opt 하위에 넣어놓고 사용한다 
+    venv_dir: "{{ app_dir }}/venv" # app 폴더 하위에 파이선 가상환경 관련 폴더를 만들기 위해 
+    app_ports: [8000, 8001] # 사용할 port 번호를 배열로 미리 준비한다.
+  
+  tasks:
+    - name: 1. 필수 시스템 페키지 설치 (Python)
+      dnf:
+        name: [python3, python3-pip]
+        state: present
+      
+    - name: 2. 앱 디렉토리 생성 및 소유권 설정
+      file:
+        path: "{{ app_dir }}"
+        state: directory 
+        mode: '0755'
+    
+    - name: 3. 간단한 fastapi 샘플코드 생성 (main.py)
+      copy:
+        dest: "{{ app_dir }}/main.py"
+        content: |
+          from fastapi import FastAPI
+          import os
+          app = FastAPI()
+          @app.get("/")
+          def read_root():
+              return {"message": "Hello FastAPI", "port": os.getenv("APP_PORT")}       
+
+    - name: 4. 가상환경 생성 및 fastapi/uvicorn 설치
+      pip:
+        name: [fastapi, uvicorn]
+        virtualenv: "{{ venv_dir }}"
+        virtualenv_command: python3 -m venv
+    
+    - name: 5. systemd 서비스 파일 생성 (8000, 8001 각각)
+      # nohup 을 이용해서 백그라운드로 실행하는 대신 정석으로 백그라운드 서비스 등록하기 위한 작업
+      copy:
+        dest: "/etc/systemd/system/fastapi_{{ item }}.service"
+        content: |
+          [Unit]
+          Description=FastAPI instance running on {{ item }}
+          After=network.target
+
+          [Service]
+          User=root
+          WorkingDirectory={{ app_dir }}
+          Environment="APP_PORT={{ item }}"
+          ExecStart={{ venv_dir }}/bin/uvicorn main:app --host 0.0.0.0 --port {{ item }}
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target    
+      loop: "{{ app_ports }}"
+
+    - name: 6. 서비스 시작 및 활성화
+      systemd:
+        name: "fastapi_{{ item }}"
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+      loop: "{{ app_ports }}"
